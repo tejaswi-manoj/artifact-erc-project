@@ -1,22 +1,34 @@
 "use client";
 import { useState } from "react";
+import { runERC } from "@/lib/ercEngine";
 
 export default function Home() {
   const [jsonInput, setJsonInput] = useState("");
   const [output, setOutput] = useState("");
 
-  function handleRunERC() {
-    try {
-      // Try to parse the JSON
-      const parsed = JSON.parse(jsonInput);
-      console.log("Parsed JSON:", parsed);
+function handleRunERC() {
+  try {
+    const parsed = JSON.parse(jsonInput);
+    console.log("Parsed JSON:", parsed);
 
-      // Temporary placeholder message
-      setOutput("✅ JSON parsed successfully! (ERC logic coming soon...)");
-    } catch (e: any) {
-      setOutput("❌ Invalid JSON: " + e.message);
-    }
+    const { results, tests } = runERC(parsed);  // ✅ call your ERC engine
+
+    // Format nicely for display
+    const resultText =
+      results.length === 0
+        ? "✅ No ERC errors found!"
+        : results.map(r => `${r.type.toUpperCase()}: ${r.message}`).join("\n");
+
+    const testText = tests
+      .map(t => `• [${t.category}] ${t.instruction}`)
+      .join("\n");
+
+    setOutput(resultText + "\n\n🧰 Suggested Tests:\n" + testText);
+  } catch (e: any) {
+    setOutput("❌ Invalid JSON: " + e.message);
   }
+}
+
 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
