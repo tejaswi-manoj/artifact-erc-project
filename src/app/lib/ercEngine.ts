@@ -15,6 +15,10 @@ export function runERCChecks(diagram: any): ERCResult[] {
   results.push(...checkOrphanComponents(diagram));
   results.push(...checkDuplicateReferenceNames(diagram));
   results.push(...checkMultipleWires(diagram));
+  results.push(...checkPowerConnections(diagram));
+  results.push(...checkSerialConnections(diagram));
+  results.push(...checkMissingPartNames(diagram));
+  results.push(...checkMissingLengths(diagram));
 
   return results;
 
@@ -99,10 +103,9 @@ function checkDuplicateReferenceNames(diagram: any): ERCResult[] {
   return results;
 }
 
+
 // Check that no pin has multiple wires going into it 
-// map each sourceHandle to an edge 
-// map each targetHandle to an edge 
-// look for duplicates
+
 function checkMultipleWires(diagram: any): ERCResult[] {
   const results: ERCResult[] = [];
   const pinConnectionMap = new Map<string, string[]>(); // pinID → list of edge IDs
@@ -130,6 +133,154 @@ function checkMultipleWires(diagram: any): ERCResult[] {
         type: "error",
         message: `Pin ${pin} has multiple wires connected (${edgeList.length} total).`,
         id: edgeList.join(", "),
+      });
+    }
+  }
+
+  return results;
+}
+
+
+// Check power connections
+
+function checkPowerConnections(diagram: any): ERCResult[] {
+  const results: ERCResult[] = [];
+  const pinMap = new Map<string, string>(); // pinID → function (PWR, GND, TX+, etc.)
+
+  // build a lookup table for pin functions
+  for (const node of diagram.nodes || []) {
+    for (const port of node.data?.ports || []) {
+      for (const pin of port.pins || []) {
+        if (pin.id && pin.function) {
+          pinMap.set(pin.id, pin.function.toUpperCase());
+        }
+      }
+    }
+  }
+
+  //loop through all edges to check what connects to what
+  for (const edge of diagram.edges || []) {
+    const sourceFn = pinMap.get(edge.sourceHandle);
+    const targetFn = pinMap.get(edge.targetHandle);
+
+    if (!sourceFn || !targetFn) continue; // skip if missing
+
+    // define “illegal” combinations
+    const illegalCombos: [string, string][] = [
+      ["PWR", "GND"],
+      ["GND", "PWR"],
+      ["PWR", "TX+"],
+      ["PWR", "TX-"],
+      ["PWR", "RX+"],
+      ["PWR", "RX-"],
+      ["TX+", "PWR"],
+      ["TX-", "PWR"],
+      ["RX+", "PWR"],
+      ["RX-", "PWR"],
+    ];
+
+    for (const [a, b] of illegalCombos) {
+      if (sourceFn === a && targetFn === b) {
+        results.push({
+          type: "error",
+          id: edge.id,
+          message: `Invalid power connection: ${sourceFn} → ${targetFn} on edge ${edge.id}`,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+
+// Check serial connections
+
+function checkSerialConnections(diagram: any): ERCResult[] {
+  const results: ERCResult[] = [];
+  const pinMap = new Map<string, string>(); // pinID → function
+
+  // 1️⃣ Build lookup of pinID → function
+  for (const node of diagram.nodes || []) {
+    for (const port of node.data?.ports || []) {
+      for (const pin of port.pins || []) {
+        if (pin.id && pin.function) {
+          pinMap.set(pin.id, pin.function.toUpperCase());
+        }
+      }
+    }
+  }
+
+  // 2️⃣ Loop through edges and compare functions
+  for (const edge of diagram.edges || []) {
+    const sourceFn = pinMap.get(edge.sourceHandle);
+    const targetFn = pinMap.get(edge.targetHandle);
+
+    if (!sourceFn || !targetFn) continue;
+
+    // Only care about serial signals
+    const serialPins = ["TX+", "TX-", "RX+", "RX-"];
+    if (!serialPins.includes(sourceFn) || !serialPins.includes(targetFn)) continue;
+
+    // correct connection
+    const validCombos = [
+      ["TX+", "RX+"],
+      ["TX-", "RX-"],
+      ["RX+", "TX+"],
+      ["RX-", "TX-"],
+    ];
+
+    const isValid = validCombos.some(([a, b]) => sourceFn === a && targetFn === b);
+    if (!isValid) {
+      results.push({
+        type: "error",
+        id: edge.id,
+        message: `Invalid serial connection: ${sourceFn} → ${targetFn} on edge ${edge.id}`,
+      });
+    }
+  }
+
+  return results;
+}
+
+// Check missing part names
+
+function checkMissingPartNames(diagram: any): ERCResult[] {
+  const results: ERCResult[] = [];
+
+  for (const node of diagram.nodes || []) {
+    // Find the "part_name" property inside display_properties
+    const partName = node.data?.display_properties?.find(
+      (prop: any) => prop.key === "part_name"
+    )?.value;
+
+    if (!partName || partName.trim() === "") {
+      results.push({
+        type: "warning",
+        id: node.id,
+        message: `Component ${node.id} is missing a part name.`,
+      });
+    }
+  }
+
+  return results;
+}
+
+
+// check missing lengths
+function checkMissingLengths(diagram: any): ERCResult[] {
+  const results: ERCResult[] = [];
+
+  for (const edge of diagram.edges || []) {
+    const lengthProp = edge.data?.display_properties?.find(
+      (prop: any) => prop.key === "length"
+    )?.value;
+
+    if (!lengthProp || lengthProp.trim() === "") {
+      results.push({
+        type: "warning",
+        id: edge.id,
+        message: `Wire/Cable ${edge.id} has no length assigned.`,
       });
     }
   }
