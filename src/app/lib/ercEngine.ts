@@ -8,20 +8,28 @@ export interface ERCResult {
   message: string;
 }
 
-export function runERCChecks(diagram: any): ERCResult[] {
-  const results: ERCResult[] = [];
+export interface TestInstruction {
+  id: string;             // edge or node id
+  category: "continuity" | "power" | "signal" | "mechanical";
+  instruction: string;    // the human-readable sentence
+}
 
-  results.push(...checkFloatingWires(diagram));
-  results.push(...checkOrphanComponents(diagram));
-  results.push(...checkDuplicateReferenceNames(diagram));
-  results.push(...checkMultipleWires(diagram));
-  results.push(...checkPowerConnections(diagram));
-  results.push(...checkSerialConnections(diagram));
-  results.push(...checkMissingPartNames(diagram));
-  results.push(...checkMissingLengths(diagram));
 
-  return results;
+export function runERC(diagram: any): { results: ERCResult[]; tests: TestInstruction[] } {
+  const results: ERCResult[] = [
+    ...checkFloatingWires(diagram),
+    ...checkOrphanComponents(diagram),
+    ...checkDuplicates(diagram),
+    ...checkMultipleWires(diagram),
+    ...checkPowerConnections(diagram),
+    ...checkSerialConnections(diagram),
+    ...checkMissingPartNames(diagram),
+    ...checkMissingLengths(diagram),
+  ];
 
+  const tests = generateTestInstructions(diagram);
+
+  return { results, tests };
 }
 
 // Checks for floating wires (edge does NOT Have a source or target)
@@ -72,7 +80,7 @@ function checkOrphanComponents(diagram: any): ERCResult[] {
 // loop through the array and return the first item whose key is reference name and get its value (e.g. battery 2)
 // next, if ref name exists, then push the id to that ref name in hash map
 
-function checkDuplicateReferenceNames(diagram: any): ERCResult[] {
+function checkDuplicates(diagram: any): ERCResult[] {
   const results: ERCResult[] = [];
   const nameMap = new Map<string, string[]>(); // name → list of node IDs
 
@@ -286,4 +294,58 @@ function checkMissingLengths(diagram: any): ERCResult[] {
   }
 
   return results;
+}
+
+
+
+function generateTestInstructions(diagram: any): TestInstruction[] {
+  const tests: TestInstruction[] = [];
+
+  for (const edge of diagram.edges || []) {
+    const props = edge.data?.display_properties || [];
+    const refName = props.find((p: any) => p.key === "reference_name")?.value;
+    const insulation = props.find((p: any) => p.key === "insulation")?.value;
+    const length = props.find((p: any) => p.key === "length")?.value;
+    const color = insulation ? insulation.toUpperCase() : "unknown color";
+
+    // 1️⃣ Continuity test
+    tests.push({
+      id: edge.id,
+      category: "continuity",
+      instruction: `Perform a continuity check along wire ${refName || edge.id} (${color}). Ensure resistance < 1 Ω.`,
+    });
+
+    // 2️⃣ Length verification
+    if (length) {
+      tests.push({
+        id: edge.id,
+        category: "mechanical",
+        instruction: `Measure and confirm wire ${refName || edge.id} length = ${length} in.`,
+      });
+    }
+
+    // 3️⃣ Power verification
+    const hasPWR = props.some((p: any) => p.value?.toUpperCase().includes("PWR"));
+    const hasGND = props.some((p: any) => p.value?.toUpperCase().includes("GND"));
+    if (hasPWR && hasGND) {
+      tests.push({
+        id: edge.id,
+        category: "power",
+        instruction: `Using a multimeter, verify ${refName || edge.id} delivers correct voltage between PWR and GND.`,
+      });
+    }
+
+    // 4️⃣ Signal verification
+    const hasTX = props.some((p: any) => p.value?.toUpperCase().includes("TX"));
+    const hasRX = props.some((p: any) => p.value?.toUpperCase().includes("RX"));
+    if (hasTX || hasRX) {
+      tests.push({
+        id: edge.id,
+        category: "signal",
+        instruction: `Use an oscilloscope to validate ${refName || edge.id} signal integrity (${hasTX ? "TX" : "RX"} line).`,
+      });
+    }
+  }
+
+  return tests;
 }
