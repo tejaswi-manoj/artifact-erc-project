@@ -1,4 +1,4 @@
-// each JSON file can have nodes, edges, viewport, nets, preferences
+// each JSON file can have nodes, edges
 // edges -> wires
 // nodes -> device
 
@@ -14,6 +14,7 @@ export function runERCChecks(diagram: any): ERCResult[] {
   results.push(...checkFloatingWires(diagram));
   results.push(...checkOrphanComponents(diagram));
   results.push(...checkDuplicateReferenceNames(diagram));
+  results.push(...checkMultipleWires(diagram));
 
   return results;
 
@@ -75,7 +76,6 @@ function checkDuplicateReferenceNames(diagram: any): ERCResult[] {
   for (const node of diagram.nodes || []) {
     // for a given node, return its ref name if it exists
     const refName = node.data?.display_properties?.find((p: any) => p.key === "reference_name")?.value;
-
     // 
     if (refName) {
       if (!nameMap.has(refName)) {
@@ -99,4 +99,40 @@ function checkDuplicateReferenceNames(diagram: any): ERCResult[] {
   return results;
 }
 
-// Check if no pin 
+// Check that no pin has multiple wires going into it 
+// map each sourceHandle to an edge 
+// map each targetHandle to an edge 
+// look for duplicates
+function checkMultipleWires(diagram: any): ERCResult[] {
+  const results: ERCResult[] = [];
+  const pinConnectionMap = new Map<string, string[]>(); // pinID → list of edge IDs
+
+  // loop through all edges
+  for (const edge of diagram.edges || []) {
+    // Each edge has sourceHandle and targetHandle (the pins)
+    const sourcePin = edge.sourceHandle;
+    const targetPin = edge.targetHandle;
+
+    // For each pin, record that this edge is connected to it
+    for (const pin of [sourcePin, targetPin]) {
+      if (!pin) continue; // skip if missing
+      if (!pinConnectionMap.has(pin)) {
+        pinConnectionMap.set(pin, []);
+      }
+      pinConnectionMap.get(pin)!.push(edge.id);
+    }
+  }
+
+  // detect pins with multiple wires
+  for (const [pin, edgeList] of pinConnectionMap.entries()) {
+    if (edgeList.length > 1) {
+      results.push({
+        type: "error",
+        message: `Pin ${pin} has multiple wires connected (${edgeList.length} total).`,
+        id: edgeList.join(", "),
+      });
+    }
+  }
+
+  return results;
+}
