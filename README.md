@@ -4,7 +4,11 @@ A web-based **Electrical Rule Check (ERC)** engine and visualization tool built 
 It parses **Artifact diagram JSON files** (containing nodes and edges representing circuit components and wires) and runs automated validation checks to identify design issues like floating wires, orphan components, invalid power connections, and more.
 
 ---
+## 🖼️ Preview
 
+![Artifact ERC Checker Screenshot](./image.png)
+
+---
 ## 🚀 Features
 
 - **Real-time ERC Validation**
