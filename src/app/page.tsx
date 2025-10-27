@@ -49,7 +49,7 @@ function handleRunERC() {
       </button>
 
       {output && (
-        <div className="mt-6 w-full max-w-3xl bg-white border border-gray-200 rounded-lg p-4 shadow-sm text-gray-800">
+        <div className="mt-6 w-full max-w-3xl bg-white border border-gray-200 rounded-lg p-4 shadow-sm text-gray-800 whitespace-pre-line">
           {output}
         </div>
       )}
