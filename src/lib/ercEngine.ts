@@ -38,7 +38,7 @@ export function runERC(diagram: any): { results: ERCResult[]; tests: TestInstruc
     ...checkMissingLengths(diagram),
     ...checkFloatingBundledWires(diagram)
   ];
-  
+
   const tests = generateTestInstructions(diagram);
 
   // improved formatted console summary
@@ -72,6 +72,31 @@ export function runERC(diagram: any): { results: ERCResult[]; tests: TestInstruc
 
   console.log(colors.cyan("--------------------------------------------------\n"));
   return { results, tests };
+}
+
+
+// Helper function to get node name
+function getNodeName(diagram: any, nodeId: string): string {
+  const node = diagram.nodes?.find((n: any) => n.id === nodeId);
+  if (!node) return nodeId;
+  
+  const refName = node.data?.display_properties?.find(
+    (p: any) => p.key === "reference_name"
+  )?.value;
+  
+  return refName || nodeId;
+}
+
+
+function getEdgeName(diagram: any, edgeId: string): string {
+  const edge = diagram.edges?.find((e: any) => e.id === edgeId);
+  if (!edge) return edgeId;
+  
+  const refName = edge.data?.display_properties?.find(
+    (p: any) => p.key === "reference_name"
+  )?.value;
+  
+  return refName || edgeId;
 }
 
 
@@ -122,10 +147,11 @@ function checkOrphanComponents(diagram: any): ERCResult[] {
       }
     }
     if (isOrphan) {
+      const refName = getNodeName(diagram, node.id);
       results.push({
         id: node.id,
         type: "error",
-        message: `Node ${node.id} is an orphan component.`,
+        message: `Component ${refName} is an orphan component.`,
       });
     }
   }
@@ -200,9 +226,10 @@ function checkMultipleWires(diagram: any): ERCResult[] {
   // detect pins with multiple wires
   for (const [pin, edgeList] of pinConnectionMap.entries()) {
     if (edgeList.length > 1) {
+      const wireNames = edgeList.map(id => getEdgeName(diagram, id)).join(", ");
       results.push({
         type: "error",
-        message: `Pin ${pin} has multiple wires connected (${edgeList.length} total).`,
+        message: `Pin ${pin} has multiple wires connected: ${wireNames}`,
         id: edgeList.join(", "),
       });
     }
@@ -263,10 +290,11 @@ function checkPowerConnections(diagram: any): ERCResult[] {
 
     for (const [a, b] of illegalCombos) {
       if (sourceFn === a && targetFn === b) {
+        const wireName = getEdgeName(diagram, edge.id);
         results.push({
           type: "error",
           id: edge.id,
-          message: `Invalid power connection: ${sourceFn} → ${targetFn} on edge ${edge.id}`,
+          message: `Invalid power connection on wire "${wireName}": ${sourceFn} → ${targetFn}`,
         });
       }
     }
@@ -313,10 +341,11 @@ function checkSerialConnections(diagram: any): ERCResult[] {
 
     const isValid = validCombos.some(([a, b]) => sourceFn === a && targetFn === b);
     if (!isValid) {
+      const wireName = getEdgeName(diagram, edge.id);
       results.push({
         type: "error",
         id: edge.id,
-        message: `Invalid serial connection: ${sourceFn} → ${targetFn} on edge ${edge.id}`,
+        message: `Invalid serial connection on wire "${wireName}": ${sourceFn} → ${targetFn}`,
       });
     }
   }
@@ -359,10 +388,11 @@ function checkMissingLengths(diagram: any): ERCResult[] {
     )?.value;
 
     if (!lengthProp || lengthProp.trim() === "") {
+      const wireName = getEdgeName(diagram, edge.id);
       results.push({
         type: "warning",
         id: edge.id,
-        message: `Wire/Cable ${edge.id} has no length assigned.`,
+        message: `Wire "${wireName}" has no length assigned.`,
       });
     }
   }
