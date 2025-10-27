@@ -22,39 +22,55 @@ export default function Home() {
   new Set(CHECK_OPTIONS.map(opt => opt.id))
   );
 
+  
 function handleRunERC() {
   try {
     const parsed = JSON.parse(jsonInput);
     console.log("Parsed JSON:", parsed);
 
-    const { results, tests } = runERC(parsed);  // ✅ call your ERC engine
-     
-    // Filter results based on enabled checks
-    const filteredResults = results.filter(r => {
+    const { results, tests } = runERC(parsed); // ✅ call your ERC engine
 
-        if (r.message.includes('floating') && r.message.includes('cable')) return enabledChecks.has('floatingBundledWires');
-        if (r.message.includes('floating')) return enabledChecks.has('floatingWires');
-        if (r.message.includes('orphan')) return enabledChecks.has('orphanComponents');
-        if (r.message.includes('Duplicate')) return enabledChecks.has('duplicates');
-        if (r.message.includes('multiple wires')) return enabledChecks.has('multipleWires');
-        if (r.message.includes('power connection')) return enabledChecks.has('powerConnections');
-        if (r.message.includes('serial connection')) return enabledChecks.has('serialConnections');
-        if (r.message.includes('missing a part name')) return enabledChecks.has('missingPartNames');
-        if (r.message.includes('no length')) return enabledChecks.has('missingLengths');
-        return true;
+    // ✅ Filter results based on enabled checks
+    const filteredResults = results.filter(r => {
+      const msg = r.message.toLowerCase();
+
+      if (msg.includes("floating") && msg.includes("cable"))
+        return enabledChecks.has("floatingBundledWires");
+      if (msg.includes("floating"))
+        return enabledChecks.has("floatingWires");
+      if (msg.includes("orphan"))
+        return enabledChecks.has("orphanComponents");
+      if (msg.includes("duplicate"))
+        return enabledChecks.has("duplicates");
+      if (msg.includes("multiple wires"))
+        return enabledChecks.has("multipleWires");
+      if (msg.includes("power connection"))
+        return enabledChecks.has("powerConnections");
+      if (msg.includes("serial connection"))
+        return enabledChecks.has("serialConnections");
+      if (msg.includes("missing a part name"))
+        return enabledChecks.has("missingPartNames");
+      if (msg.includes("no length"))
+        return enabledChecks.has("missingLengths");
+      return true;
     });
 
-    // Format nicely for display
+    // ✅ Also filter test generation if needed (optional)
+    const filteredTests = tests; // could add similar filtering by category if desired
+
+    // ✅ Format nicely for display using *filtered* results
     const resultText =
-      results.length === 0
+      filteredResults.length === 0
         ? "✅ No ERC errors found!"
-        : results.map(r => `${r.type.toUpperCase()}: ${r.message}`).join("\n");
+        : filteredResults
+            .map(r => `${r.type.toUpperCase()}: ${r.message}`)
+            .join("\n\n");
 
-    const testText = tests
-      .map(t => `• [${t.category}] ${t.instruction}`)
-      .join("\n");
+    const testText = filteredTests
+      .map((t, idx) => `${idx + 1}. [${t.category}] ${t.instruction}`)
+      .join("\n\n");
 
-    setOutput(resultText + "\n\n🧰 Suggested Tests:\n" + testText);
+    setOutput(resultText + "\n\n🧰 Suggested Tests:\n\n" + testText);
   } catch (e: any) {
     setOutput("❌ Invalid JSON: " + e.message);
   }
