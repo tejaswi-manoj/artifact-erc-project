@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ⚡ Artifact ERC Checker
 
-## Getting Started
+A web-based **Electrical Rule Check (ERC)** engine and visualization tool built with **Next.js**.  
+It parses **Artifact diagram JSON files** (containing nodes and edges representing circuit components and wires) and runs automated validation checks to identify design issues like floating wires, orphan components, invalid power connections, and more.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Real-time ERC Validation**
+  - Detects common schematic and connection errors:
+    - Floating wires or bundled wires  
+    - Orphan components  
+    - Duplicate reference names  
+    - Multiple wires connected to a single pin  
+    - Invalid power or serial connections  
+    - Missing part names or wire lengths  
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Dynamic Check Selection**
+  - Enable or disable individual ERC tests interactively.  
+  - Supports “Select All” and “Deselect All” functionality.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Interactive JSON Input**
+  - Paste or upload Artifact diagram JSONs.  
+  - Instantly parse and validate with one click.  
+  - See clean, formatted output with categorized results.
 
-## Learn More
+- **Suggested Hardware Tests**
+  - Automatically generates practical **continuity, power, signal, and mechanical** test instructions based on the diagram content.
 
-To learn more about Next.js, take a look at the following resources:
+- **Next.js + TypeScript + TailwindCSS**
+  - Fully client-side rendered with modern UI, responsive layout, and fast performance.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🧰 How It Works
 
-## Deploy on Vercel
+1. **Input:**  
+   Paste a valid Artifact diagram JSON file describing nodes (devices) and edges (wires).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Process:**  
+   The built-in `runERC()` engine analyzes:
+   - Connectivity between nodes and pins  
+   - Pin functions (PWR, GND, TX/RX)  
+   - Metadata such as part names, lengths, and insulation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Output:**  
+   Displays categorized ERC results and auto-generated hardware test instructions.
+
+---
+
+## 🧪 Example Checks
+
+| Type | Description |
+|------|--------------|
+| ⚠️ Floating Wires | Wires with unconnected or ghost node ends |
+| 🧩 Orphan Components | Components not connected to any wire |
+| 🔌 Invalid Power Connections | PWR connected directly to GND or TX/RX |
+| 🧠 Duplicate Names | Multiple components using the same reference name |
+| 🧾 Missing Metadata | Components or wires missing required fields like `part_name` or `length` |
+
+---
